@@ -152,7 +152,8 @@ export function GameView({ gameId }: GameViewProps) {
           </div>
         </div>
 
-        {isFinished && bothRevealed && winner && (
+        {/* Show result if both revealed */}
+        {bothRevealed && winner && (
           <div className={`mt-4 p-4 rounded-lg border ${
             winner === 'draw' 
               ? 'bg-gray-700/50 border-gray-500' 
@@ -171,7 +172,10 @@ export function GameView({ gameId }: GameViewProps) {
                   ? 'text-green-300'
                   : 'text-red-300'
               }`}>
-                {winner === 'draw' ? "It's a Draw!" : winner === 'you' ? 'You Won!' : 'You Lost!'}
+                {isFinished 
+                  ? (winner === 'draw' ? "Game Finished - Draw!" : winner === 'you' ? 'You Won!' : 'You Lost!')
+                  : "Round Draw - Play Again!"
+                }
               </p>
               <div className="flex items-center justify-center gap-3 text-lg">
                 <span className={winner === 'you' ? 'text-green-400 font-bold' : 'text-gray-300'}>
@@ -182,6 +186,11 @@ export function GameView({ gameId }: GameViewProps) {
                   {MOVE_NAMES[opponentMove!.revealedMove]}
                 </span>
               </div>
+              {!isFinished && winner === 'draw' && (
+                <p className="text-sm text-gray-300 mt-2">
+                  Both players need to commit new moves for the next round
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -196,6 +205,20 @@ export function GameView({ gameId }: GameViewProps) {
       {/* Action Panel */}
       {!isFinished && (
         <div>
+          {/* Draw indicator - both revealed but game continues */}
+          {bothRevealed && winner === 'draw' && (
+            <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4 mb-6">
+              <div className="text-center">
+                <p className="text-blue-200 font-semibold text-lg mb-2">
+                  🔄 New Round Required
+                </p>
+                <p className="text-blue-300 text-sm">
+                  The previous round was a draw. Both players must commit new moves to continue.
+                </p>
+              </div>
+            </div>
+          )}
+
           {myMoveState === MoveState.EMPTY && (
             <PlayMove gameId={gameId} onSuccess={refreshGameData} />
           )}
