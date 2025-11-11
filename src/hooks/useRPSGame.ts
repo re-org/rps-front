@@ -3,7 +3,7 @@ import { RPSGameHubABI } from '../contracts/RPSGameHubABI';
 import { CONTRACT_ADDRESS } from '../config/web3';
 import { GameMove, GameState, Move } from '../types/game';
 import { createMoveCommitment } from '../utils/crypto';
-import { storeSecret, getSecret, clearSecret } from '../utils/storage';
+import { storeSecret, getSecret, clearSecret, getGameSecrets } from '../utils/storage';
 
 export function useRPSGame() {
   const { address } = useAccount();
@@ -50,18 +50,41 @@ export function useRPSGame() {
   };
 
   // Reveal a move
-  const revealMove = async (gameId: bigint, turn: bigint) => {
-    const secretData = getSecret(gameId, turn);
-    if (!secretData) throw new Error('No secret found for this turn');
+  const revealMove = async (gameId: bigint, turn: bigint, manualMove?: GameMove, manualSecret?: string) => {
+    let move: GameMove;
+    let secret: string;
+    let storedTurn: bigint | undefined;
+
+    if (manualMove !== undefined && manualSecret !== undefined) {
+      // Use manually provided move and secret
+      move = manualMove;
+      secret = manualSecret;
+    } else {
+      // Try to get from storage - first by turn, then by game
+      let secretData = getSecret(gameId, turn);
+      if (!secretData) {
+        const gameSecrets = getGameSecrets(gameId);
+        secretData = gameSecrets.length > 0 ? gameSecrets[0] : null;
+      }
+
+      if (!secretData) throw new Error('No secret found. Please provide move and secret manually.');
+
+      move = secretData.move;
+      secret = secretData.secret;
+      storedTurn = secretData.turn;
+    }
 
     const result = writeContract({
       address: CONTRACT_ADDRESS,
       abi: RPSGameHubABI,
       functionName: 'revealMove',
-      args: [gameId, secretData.move, secretData.secret],
+      args: [gameId, move, secret],
     });
 
     // Clear the secret after revealing
+    if (storedTurn !== undefined) {
+      clearSecret(gameId, storedTurn);
+    }
     clearSecret(gameId, turn);
 
     return result;

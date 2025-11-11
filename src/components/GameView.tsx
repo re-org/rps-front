@@ -1,6 +1,6 @@
 import { useAccount } from 'wagmi';
 import { useGameDetails, usePlayerMove } from '../hooks/useRPSGame';
-import { GameState, MoveState, MOVE_NAMES_SHORT } from '../types/game';
+import { GameState, MoveState, MOVE_NAMES_SHORT, GameMove, MOVE_NAMES } from '../types/game';
 import { PlayMove } from './PlayMove';
 import { RevealMove } from './RevealMove';
 
@@ -55,6 +55,27 @@ export function GameView({ gameId }: GameViewProps) {
   const isFinished = gameState === GameState.FINISHED;
   const myMoveState = myMove?.state;
   const opponentMoveState = opponentMove?.state;
+
+  // Determine winner if both moves are revealed
+  const bothRevealed = myMoveState === MoveState.REVEALED && opponentMoveState === MoveState.REVEALED;
+  let winner: 'you' | 'opponent' | 'draw' | null = null;
+  
+  if (bothRevealed && myMove && opponentMove) {
+    const myRevealedMove = myMove.revealedMove;
+    const opponentRevealedMove = opponentMove.revealedMove;
+    
+    if (myRevealedMove === opponentRevealedMove) {
+      winner = 'draw';
+    } else if (
+      (myRevealedMove === GameMove.ROCK && opponentRevealedMove === GameMove.SCISSORS) ||
+      (myRevealedMove === GameMove.PAPER && opponentRevealedMove === GameMove.ROCK) ||
+      (myRevealedMove === GameMove.SCISSORS && opponentRevealedMove === GameMove.PAPER)
+    ) {
+      winner = 'you';
+    } else {
+      winner = 'opponent';
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -124,9 +145,43 @@ export function GameView({ gameId }: GameViewProps) {
           </div>
         </div>
 
-        {isFinished && (
-          <div className="mt-4 p-3 bg-green-900/30 border border-green-800 rounded-lg">
-            <p className="text-green-200 font-semibold">Game Finished!</p>
+        {isFinished && bothRevealed && winner && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            winner === 'draw' 
+              ? 'bg-gray-700/50 border-gray-500' 
+              : winner === 'you'
+              ? 'bg-green-900/30 border-green-600'
+              : 'bg-red-900/30 border-red-600'
+          }`}>
+            <div className="text-center">
+              <div className="text-3xl mb-2">
+                {winner === 'draw' ? '🤝' : winner === 'you' ? '🎉' : '😔'}
+              </div>
+              <p className={`text-xl font-bold mb-2 ${
+                winner === 'draw' 
+                  ? 'text-gray-200' 
+                  : winner === 'you'
+                  ? 'text-green-300'
+                  : 'text-red-300'
+              }`}>
+                {winner === 'draw' ? "It's a Draw!" : winner === 'you' ? 'You Won!' : 'You Lost!'}
+              </p>
+              <div className="flex items-center justify-center gap-3 text-lg">
+                <span className={winner === 'you' ? 'text-green-400 font-bold' : 'text-gray-300'}>
+                  {MOVE_NAMES[myMove!.revealedMove]}
+                </span>
+                <span className="text-gray-500">vs</span>
+                <span className={winner === 'opponent' ? 'text-red-400 font-bold' : 'text-gray-300'}>
+                  {MOVE_NAMES[opponentMove!.revealedMove]}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {isFinished && !bothRevealed && (
+          <div className="mt-4 p-3 bg-yellow-900/30 border border-yellow-800 rounded-lg">
+            <p className="text-yellow-200 font-semibold">⏳ Game Finished - Waiting for all reveals</p>
           </div>
         )}
       </div>
@@ -138,11 +193,11 @@ export function GameView({ gameId }: GameViewProps) {
             <PlayMove gameId={gameId} />
           )}
           
-          {myMoveState === MoveState.MOVED && opponentMoveState === MoveState.MOVED && myTurn !== undefined && (
+          {myMoveState === MoveState.MOVED && (opponentMoveState === MoveState.MOVED || opponentMoveState === MoveState.REVEALED) && myTurn !== undefined && (
             <RevealMove gameId={gameId} turn={myTurn} />
           )}
           
-          {myMoveState === MoveState.MOVED && opponentMoveState !== MoveState.MOVED && (
+          {myMoveState === MoveState.MOVED && opponentMoveState === MoveState.EMPTY && (
             <div className="bg-blue-900/30 border border-blue-800 rounded-lg p-4">
               <p className="text-blue-200">
                 ⏳ Waiting for opponent to commit their move...

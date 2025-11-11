@@ -1,4 +1,5 @@
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { NetworkSwitcher } from './NetworkSwitcher';
 
 export function WalletConnect() {
   const { address, isConnected } = useAccount();
@@ -7,17 +8,20 @@ export function WalletConnect() {
 
   if (isConnected && address) {
     return (
-      <div className="flex items-center gap-4">
-        <div className="text-sm">
-          <span className="text-gray-400">Connected:</span>{' '}
-          <span className="font-mono">{address.slice(0, 6)}...{address.slice(-4)}</span>
+      <div className="flex items-center gap-6">
+        <NetworkSwitcher />
+        <div className="border-l border-gray-600 pl-6 flex items-center gap-4">
+          <div className="text-sm">
+            <span className="text-gray-400">Connected:</span>{' '}
+            <span className="font-mono">{address.slice(0, 6)}...{address.slice(-4)}</span>
+          </div>
+          <button
+            onClick={() => disconnect()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+          >
+            Disconnect
+          </button>
         </div>
-        <button
-          onClick={() => disconnect()}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-        >
-          Disconnect
-        </button>
       </div>
     );
   }
