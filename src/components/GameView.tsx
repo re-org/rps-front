@@ -10,15 +10,22 @@ interface GameViewProps {
 
 export function GameView({ gameId }: GameViewProps) {
   const { address } = useAccount();
-  const { player1, player2, gameState } = useGameDetails(gameId);
-  const { turn: myTurn, move: myMove } = usePlayerMove(gameId, address);
+  const { player1, player2, gameState, refetchAll: refetchGameDetails } = useGameDetails(gameId);
+  const { turn: myTurn, move: myMove, refetchAll: refetchMyMove } = usePlayerMove(gameId, address);
   
   // Determine opponent address
   const opponentAddress = address && player1 && player2
     ? (address.toLowerCase() === player1.toLowerCase() ? player2 : player1)
     : undefined;
   
-  const { turn: opponentTurn, move: opponentMove } = usePlayerMove(gameId, opponentAddress);
+  const { turn: opponentTurn, move: opponentMove, refetchAll: refetchOpponentMove } = usePlayerMove(gameId, opponentAddress);
+
+  // Function to refresh all game data
+  const refreshGameData = () => {
+    refetchGameDetails();
+    refetchMyMove();
+    refetchOpponentMove();
+  };
 
   if (!player1 || !player2) {
     return (
@@ -190,11 +197,11 @@ export function GameView({ gameId }: GameViewProps) {
       {!isFinished && (
         <div>
           {myMoveState === MoveState.EMPTY && (
-            <PlayMove gameId={gameId} />
+            <PlayMove gameId={gameId} onSuccess={refreshGameData} />
           )}
           
           {myMoveState === MoveState.MOVED && (opponentMoveState === MoveState.MOVED || opponentMoveState === MoveState.REVEALED) && myTurn !== undefined && (
-            <RevealMove gameId={gameId} turn={myTurn} />
+            <RevealMove gameId={gameId} turn={myTurn} onSuccess={refreshGameData} />
           )}
           
           {myMoveState === MoveState.MOVED && opponentMoveState === MoveState.EMPTY && (

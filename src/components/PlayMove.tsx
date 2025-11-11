@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useRPSGame } from '../hooks/useRPSGame';
 import { GameMove, MOVE_NAMES } from '../types/game';
@@ -11,11 +11,21 @@ interface PlayMoveProps {
 
 export function PlayMove({ gameId, onSuccess }: PlayMoveProps) {
   const { address } = useAccount();
-  const { playMove, isPending } = useRPSGame();
+  const { playMove, isPending, isConfirming, isConfirmed } = useRPSGame();
   const [selectedMove, setSelectedMove] = useState<GameMove | null>(null);
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
   const [showSecretInput, setShowSecretInput] = useState(false);
+
+  // Call onSuccess when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      setSelectedMove(null);
+      setSecret('');
+      setShowSecretInput(false);
+      onSuccess?.();
+    }
+  }, [isConfirmed, onSuccess]);
 
   const handleGenerateSecret = () => {
     const newSecret = generateRandomSecret();
@@ -44,10 +54,7 @@ export function PlayMove({ gameId, onSuccess }: PlayMoveProps) {
 
     try {
       await playMove(gameId, selectedMove, secret);
-      setSelectedMove(null);
-      setSecret('');
-      setShowSecretInput(false);
-      onSuccess?.();
+      // Reset will happen in useEffect when isConfirmed is true
     } catch (err: any) {
       setError(err.message || 'Failed to play move');
     }
@@ -116,10 +123,10 @@ export function PlayMove({ gameId, onSuccess }: PlayMoveProps) {
 
         <button
           type="submit"
-          disabled={isPending || !address || selectedMove === null || !secret}
+          disabled={isPending || isConfirming || !address || selectedMove === null || !secret}
           className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors font-medium"
         >
-          {isPending ? 'Committing Move...' : 'Commit Move'}
+          {isConfirming ? 'Confirming...' : isPending ? 'Committing Move...' : 'Commit Move'}
         </button>
       </form>
 

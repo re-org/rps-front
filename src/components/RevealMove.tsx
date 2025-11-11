@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useRPSGame } from '../hooks/useRPSGame';
 import { getSecret, getGameSecrets } from '../utils/storage';
@@ -12,9 +12,16 @@ interface RevealMoveProps {
 
 export function RevealMove({ gameId, turn, onSuccess }: RevealMoveProps) {
   const { address } = useAccount();
-  const { revealMove, isPending } = useRPSGame();
+  const { revealMove, isPending, isConfirming, isConfirmed } = useRPSGame();
   const [manualMove, setManualMove] = useState<GameMove>(GameMove.ROCK);
   const [manualSecret, setManualSecret] = useState('');
+
+  // Call onSuccess when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      onSuccess?.();
+    }
+  }, [isConfirmed, onSuccess]);
   
   // Try to get secret - first by turn, then by game
   let secretData = getSecret(gameId, turn);
@@ -32,7 +39,7 @@ export function RevealMove({ gameId, turn, onSuccess }: RevealMoveProps) {
         // Use manual input
         await revealMove(gameId, turn, manualMove, manualSecret);
       }
-      onSuccess?.();
+      // onSuccess will be called in useEffect when isConfirmed is true
     } catch (err: any) {
       console.error('Failed to reveal move:', err);
       alert(`Failed to reveal: ${err.message || 'Unknown error'}`);
@@ -58,10 +65,10 @@ export function RevealMove({ gameId, turn, onSuccess }: RevealMoveProps) {
 
             <button
               onClick={handleReveal}
-              disabled={isPending || !address}
+              disabled={isPending || isConfirming || !address}
               className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors font-medium"
             >
-              {isPending ? 'Revealing...' : 'Reveal Move'}
+              {isConfirming ? 'Confirming...' : isPending ? 'Revealing...' : 'Reveal Move'}
             </button>
           </>
         ) : (
@@ -103,10 +110,10 @@ export function RevealMove({ gameId, turn, onSuccess }: RevealMoveProps) {
 
             <button
               onClick={handleReveal}
-              disabled={isPending || !address || !manualSecret}
+              disabled={isPending || isConfirming || !address || !manualSecret}
               className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors font-medium"
             >
-              {isPending ? 'Revealing...' : 'Reveal Move'}
+              {isConfirming ? 'Confirming...' : isPending ? 'Revealing...' : 'Reveal Move'}
             </button>
           </div>
         )}

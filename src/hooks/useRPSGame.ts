@@ -1,13 +1,19 @@
-import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { RPSGameHubABI } from '../contracts/RPSGameHubABI';
 import { CONTRACT_ADDRESS } from '../config/web3';
 import { GameMove, GameState, Move } from '../types/game';
 import { createMoveCommitment } from '../utils/crypto';
 import { storeSecret, getSecret, clearSecret, getGameSecrets } from '../utils/storage';
+import { useEffect } from 'react';
 
 export function useRPSGame() {
   const { address } = useAccount();
   const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
+
+  // Wait for transaction receipt
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  });
 
   // Read the total games count
   const { data: gamesCount, refetch: refetchGamesCount } = useReadContract({
@@ -15,6 +21,13 @@ export function useRPSGame() {
     abi: RPSGameHubABI,
     functionName: 'gamesCount',
   });
+
+  // Auto-refetch games count when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      refetchGamesCount();
+    }
+  }, [isConfirmed, refetchGamesCount]);
 
   // Create a new game
   const createGame = async (player1: `0x${string}`, player2: `0x${string}`) => {
@@ -107,6 +120,8 @@ export function useRPSGame() {
     revealMove,
     claimTimeout,
     isPending,
+    isConfirming,
+    isConfirmed,
     hash,
     error: writeError,
     refetchGamesCount,
@@ -115,7 +130,7 @@ export function useRPSGame() {
 
 // Hook to read game details
 export function useGameDetails(gameId: bigint | undefined) {
-  const { data: player1 } = useReadContract({
+  const { data: player1, refetch: refetchPlayer1 } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: RPSGameHubABI,
     functionName: 'player1',
@@ -125,7 +140,7 @@ export function useGameDetails(gameId: bigint | undefined) {
     },
   });
 
-  const { data: player2 } = useReadContract({
+  const { data: player2, refetch: refetchPlayer2 } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: RPSGameHubABI,
     functionName: 'player2',
@@ -135,7 +150,7 @@ export function useGameDetails(gameId: bigint | undefined) {
     },
   });
 
-  const { data: gameState } = useReadContract({
+  const { data: gameState, refetch: refetchGameState } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: RPSGameHubABI,
     functionName: 'getGameState',
@@ -145,7 +160,7 @@ export function useGameDetails(gameId: bigint | undefined) {
     },
   });
 
-  const { data: lastMoveTimestamp } = useReadContract({
+  const { data: lastMoveTimestamp, refetch: refetchLastMoveTimestamp } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: RPSGameHubABI,
     functionName: 'getLastMoveTimestamp',
@@ -155,17 +170,25 @@ export function useGameDetails(gameId: bigint | undefined) {
     },
   });
 
+  const refetchAll = () => {
+    refetchPlayer1();
+    refetchPlayer2();
+    refetchGameState();
+    refetchLastMoveTimestamp();
+  };
+
   return {
     player1,
     player2,
     gameState: gameState as GameState | undefined,
     lastMoveTimestamp,
+    refetchAll,
   };
 }
 
 // Hook to read player's turn and move
 export function usePlayerMove(gameId: bigint | undefined, playerAddress: `0x${string}` | undefined) {
-  const { data: turn } = useReadContract({
+  const { data: turn, refetch: refetchTurn } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: RPSGameHubABI,
     functionName: 'getTurn',
@@ -175,7 +198,7 @@ export function usePlayerMove(gameId: bigint | undefined, playerAddress: `0x${st
     },
   });
 
-  const { data: move } = useReadContract({
+  const { data: move, refetch: refetchMove } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: RPSGameHubABI,
     functionName: 'getMove',
@@ -185,9 +208,15 @@ export function usePlayerMove(gameId: bigint | undefined, playerAddress: `0x${st
     },
   });
 
+  const refetchAll = () => {
+    refetchTurn();
+    refetchMove();
+  };
+
   return {
     turn,
     move: move as Move | undefined,
+    refetchAll,
   };
 }
 
